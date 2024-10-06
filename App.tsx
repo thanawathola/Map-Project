@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import MapLibreGL from '@maplibre/maplibre-react-native';
+import { API_URL } from '@env';
 
 MapLibreGL.setAccessToken(null);
 
@@ -35,10 +36,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     async function getData() {
-      const url =
-        'https://v2k-dev.vallarismaps.com/core/api/features/1.1/collections/658cd4f88a4811f10a47cea7/items?api_key=bLNytlxTHZINWGt1GIRQBUaIlqz9X45XykLD83UkzIoN6PFgqbH7M7EDbsdgKVwC';
       try {
-        const response = await fetch(url);
+        const response = await fetch(API_URL);
         if (!response.ok) {
           throw new Error(`Response status: ${response.status}`);
         }
@@ -46,7 +45,6 @@ const App: React.FC = () => {
         const json: GeoJsonFeatureCollection = await response.json();
         console.log(json);
         setGeo(json);
-
       } catch (error: any) {
         console.error(error?.message);
       }
