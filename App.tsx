@@ -60,7 +60,7 @@ const App: React.FC = () => {
         logoEnabled={false}
         styleURL="https://demotiles.maplibre.org/style.json">
         <MapLibreGL.Camera
-          zoomLevel={4}
+          zoomLevel={5}
           centerCoordinate={geo ? geo.features[0].geometry.coordinates : [0, 0]}
         />
         {geo && (
@@ -69,7 +69,7 @@ const App: React.FC = () => {
               id="pointLayer"
               style={{
                 iconImage: require('./public/images/Map-marker.png'),
-                iconSize: 0.05,
+                iconSize: 0.06,
               }}
             />
           </MapLibreGL.ShapeSource>
