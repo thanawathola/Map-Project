@@ -1,9 +1,10 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Button } from 'react-native';
+import { StyleSheet, View, Button, TouchableOpacity } from 'react-native';
 import MapLibreGL from '@maplibre/maplibre-react-native';
 import axios from 'axios';
 import { API_URL } from '@env';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 MapLibreGL.setAccessToken(null);
 
@@ -18,8 +19,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 10,
     right: 10,
-    backgroundColor: 'white',
-    borderRadius: 5,
+    // backgroundColor: 'white',
+    // borderRadius: 5,
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  button: {
+    backgroundColor: 'teal',
+    borderRadius: 50,
+    padding: 10,
+    marginVertical: 5,
+    elevation: 3,
+  },
+  icon: {
+    color: 'black',
   },
 });
 
@@ -39,11 +52,14 @@ type GeoJsonFeatureCollection = {
 };
 
 const BATCH_SIZE = 100;
+const MAX_ZOOM_LEVEL = 9;
+const MIN_ZOOM_LEVEL = 0;
 
 const App: React.FC = () => {
   const [features, setFeatures] = useState<GeoJsonFeature[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(5);  // Default zoom level
 
   useEffect(() => {
     fetchFeatures(currentPage);
@@ -75,6 +91,14 @@ const App: React.FC = () => {
     setCurrentPage(prevPage => prevPage + 1);
   };
 
+  const zoomIn = () => {
+    setZoomLevel(prevZoom => Math.min(prevZoom + 1, MAX_ZOOM_LEVEL));
+  };
+
+  const zoomOut = () => {
+    setZoomLevel(prevZoom => Math.max(prevZoom - 1, MIN_ZOOM_LEVEL));
+  };
+
   return (
     <View style={styles.page}>
       <MapLibreGL.MapView
@@ -83,7 +107,7 @@ const App: React.FC = () => {
         styleURL="https://demotiles.maplibre.org/style.json"
       >
         <MapLibreGL.Camera
-          zoomLevel={5}
+          zoomLevel={zoomLevel}
           centerCoordinate={features[0]?.geometry.coordinates || [0, 0]}
         />
         {features.length > 0 && (
@@ -109,6 +133,16 @@ const App: React.FC = () => {
           disabled={loading}
         />
       </View>
+      <View style={styles.buttonContainer}>
+        {/* Zoom In Button */}
+        <TouchableOpacity style={styles.button} onPress={zoomIn} disabled={zoomLevel >= MAX_ZOOM_LEVEL}>
+          <Icon name="zoom-in" size={30} style={styles.icon} />
+        </TouchableOpacity>
+        {/* Zoom Out Button */}
+        <TouchableOpacity style={styles.button} onPress={zoomOut} disabled={zoomLevel >= MAX_ZOOM_LEVEL}>
+          <Icon name="zoom-in" size={30} style={styles.icon} />
+        </TouchableOpacity>
+        </View>
     </View>
   );
 };
