@@ -1,9 +1,9 @@
 /* eslint-disable react-native/no-inline-styles */
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Button, TouchableOpacity } from 'react-native';
+import React, {useState, useEffect} from 'react';
+import {StyleSheet, View, Button, TouchableOpacity} from 'react-native';
 import MapLibreGL from '@maplibre/maplibre-react-native';
 import axios from 'axios';
-import { API_URL } from '@env';
+import {API_URL} from '@env';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 MapLibreGL.setAccessToken(null);
@@ -15,7 +15,16 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
-  buttonContainer: {
+  LoadButtonContainer: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    // backgroundColor: 'white',
+    // borderRadius: 5,
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  ZoomButtonContainer: {
     position: 'absolute',
     bottom: 10,
     right: 10,
@@ -59,7 +68,7 @@ const App: React.FC = () => {
   const [features, setFeatures] = useState<GeoJsonFeature[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(5);  // Default zoom level
+  const [zoomLevel, setZoomLevel] = useState(5); // Default zoom level
 
   useEffect(() => {
     fetchFeatures(currentPage);
@@ -76,7 +85,10 @@ const App: React.FC = () => {
       });
 
       if (response.status === 200) {
-        setFeatures(prevFeatures => [...prevFeatures, ...response.data.features]);
+        setFeatures(prevFeatures => [
+          ...prevFeatures,
+          ...response.data.features,
+        ]);
       } else {
         throw new Error(`Response status: ${response.status}`);
       }
@@ -104,8 +116,7 @@ const App: React.FC = () => {
       <MapLibreGL.MapView
         style={styles.map}
         logoEnabled={false}
-        styleURL="https://demotiles.maplibre.org/style.json"
-      >
+        styleURL="https://demotiles.maplibre.org/style.json">
         <MapLibreGL.Camera
           zoomLevel={zoomLevel}
           centerCoordinate={features[0]?.geometry.coordinates || [0, 0]}
@@ -113,8 +124,7 @@ const App: React.FC = () => {
         {features.length > 0 && (
           <MapLibreGL.ShapeSource
             id="pointSource"
-            shape={{ type: 'FeatureCollection', features }}
-          >
+            shape={{type: 'FeatureCollection', features}}>
             <MapLibreGL.SymbolLayer
               id="pointLayer"
               style={{
@@ -125,24 +135,30 @@ const App: React.FC = () => {
           </MapLibreGL.ShapeSource>
         )}
       </MapLibreGL.MapView>
-      <View style={styles.buttonContainer}>
+      <View style={styles.LoadButtonContainer}>
         <Button
           // eslint-disable-next-line quotes
-          title={loading ? "Loading..." : "Load More"}
+          title={loading ? 'Loading...' : 'Load More'}
           onPress={loadMoreFeatures}
           disabled={loading}
         />
       </View>
-      <View style={styles.buttonContainer}>
+      <View style={styles.ZoomButtonContainer}>
         {/* Zoom In Button */}
-        <TouchableOpacity style={styles.button} onPress={zoomIn} disabled={zoomLevel >= MAX_ZOOM_LEVEL}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={zoomIn}
+          disabled={zoomLevel >= MAX_ZOOM_LEVEL}>
           <Icon name="zoom-in" size={30} style={styles.icon} />
         </TouchableOpacity>
         {/* Zoom Out Button */}
-        <TouchableOpacity style={styles.button} onPress={zoomOut} disabled={zoomLevel >= MAX_ZOOM_LEVEL}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={zoomOut}
+          disabled={zoomLevel >= MAX_ZOOM_LEVEL}>
           <Icon name="zoom-in" size={30} style={styles.icon} />
         </TouchableOpacity>
-        </View>
+      </View>
     </View>
   );
 };
