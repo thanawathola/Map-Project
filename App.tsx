@@ -1,6 +1,6 @@
 /* eslint-disable react-native/no-inline-styles */
-import React, {useState, useEffect} from 'react';
-import {StyleSheet, View, Button, TouchableOpacity} from 'react-native';
+import React, {useState, useEffect, useRef, useCallback} from 'react';
+import {StyleSheet, View, Button, TouchableOpacity, Text} from 'react-native';
 import MapLibreGL from '@maplibre/maplibre-react-native';
 import axios from 'axios';
 import {API_URL} from '@env';
@@ -19,8 +19,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 10,
     left: 10,
-    // backgroundColor: 'white',
-    // borderRadius: 5,
     flexDirection: 'column',
     alignItems: 'center',
   },
@@ -28,13 +26,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 10,
     right: 10,
-    // backgroundColor: 'white',
-    // borderRadius: 5,
     flexDirection: 'column',
     alignItems: 'center',
   },
+  TotalNumberMatchedContainer: {
+    position: 'absolute',
+    top: 25,
+    left: 10,
+    backgroundColor: 'white',
+    paddingTop: 5,
+    paddingBottom: 5,
+    paddingLeft: 10,
+    paddingRight: 10,
+  },
   button: {
-    backgroundColor: 'teal',
+    backgroundColor: 'white',
     borderRadius: 50,
     padding: 10,
     marginVertical: 5,
@@ -42,6 +48,19 @@ const styles = StyleSheet.create({
   },
   icon: {
     color: 'black',
+  },
+  CountMarks: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'white',
+    paddingTop: 5,
+    paddingBottom: 5,
+    paddingLeft: 10,
+    paddingRight: 10,
+  },
+  text: {
+    fontSize: 14,
   },
 });
 
@@ -60,7 +79,13 @@ type GeoJsonFeatureCollection = {
   features: GeoJsonFeature[];
 };
 
-const BATCH_SIZE = 100;
+interface ApiResponse {
+  numberMatched: number;
+}
+
+const BATCH_SIZE = 500;
+const LIMIT = 10000;
+const ZOOM = 0.5;
 const MAX_ZOOM_LEVEL = 9;
 const MIN_ZOOM_LEVEL = 0;
 
@@ -68,13 +93,26 @@ const App: React.FC = () => {
   const [features, setFeatures] = useState<GeoJsonFeature[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(5); // Default zoom level
+  const [zoomLevel, setZoomLevel] = useState(5);
 
+  const [mapCenter, setMapCenter] = useState<[number, number]>([0, 0]);
+  const cameraRef = useRef<any>(null);
+
+  const [numberMatched, setNumberMatched] = useState<number | null>(null);
   useEffect(() => {
-    fetchFeatures(currentPage);
-  }, [currentPage]);
+    const fetchData = async () => {
+      try {
+        const response = await fetch(API_URL);
+        const json: ApiResponse = await response.json();
+        setNumberMatched(json.numberMatched);
+      } catch (error) {
+        console.error(error);
+      }
+    };
 
-  const fetchFeatures = async (page: number) => {
+    fetchData();
+  }, []);
+  const fetchFeatures = useCallback(async (page: number) => {
     try {
       setLoading(true);
       const response = await axios.get<GeoJsonFeatureCollection>(API_URL, {
@@ -85,10 +123,16 @@ const App: React.FC = () => {
       });
 
       if (response.status === 200) {
-        setFeatures(prevFeatures => [
-          ...prevFeatures,
-          ...response.data.features,
-        ]);
+        setFeatures(prevFeatures =>
+          prevFeatures.length < LIMIT
+            ? [...prevFeatures, ...response.data.features]
+            : [...prevFeatures],
+        );
+        if (response.data.features.length > 0 && page === 0) {
+          centerMapOnCoordinates(
+            response.data.features[0].geometry.coordinates,
+          );
+        }
       } else {
         throw new Error(`Response status: ${response.status}`);
       }
@@ -97,6 +141,24 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchFeatures(currentPage);
+  }, [fetchFeatures, currentPage]);
+
+  const centerMapOnCoordinates = (coordinates: [number, number]) => {
+    if (
+      cameraRef.current &&
+      typeof cameraRef.current.setCamera === 'function'
+    ) {
+      cameraRef.current.setCamera({
+        centerCoordinate: coordinates,
+        animationMode: 'easeTo',
+        animationDuration: 1000,
+      });
+      setMapCenter(coordinates);
+    }
   };
 
   const loadMoreFeatures = () => {
@@ -104,11 +166,35 @@ const App: React.FC = () => {
   };
 
   const zoomIn = () => {
-    setZoomLevel(prevZoom => Math.min(prevZoom + 1, MAX_ZOOM_LEVEL));
+    const newZoom = Math.min(zoomLevel + ZOOM, MAX_ZOOM_LEVEL);
+    setZoomLevel(newZoom);
+    if (
+      cameraRef.current &&
+      typeof cameraRef.current.setCamera === 'function'
+    ) {
+      cameraRef.current.setCamera({
+        zoomLevel: newZoom,
+        centerCoordinate: mapCenter,
+        animationMode: 'easeTo',
+        animationDuration: 500,
+      });
+    }
   };
 
   const zoomOut = () => {
-    setZoomLevel(prevZoom => Math.max(prevZoom - 1, MIN_ZOOM_LEVEL));
+    const newZoom = Math.max(zoomLevel - ZOOM, MIN_ZOOM_LEVEL);
+    setZoomLevel(newZoom);
+    if (
+      cameraRef.current &&
+      typeof cameraRef.current.setCamera === 'function'
+    ) {
+      cameraRef.current.setCamera({
+        zoomLevel: newZoom,
+        centerCoordinate: mapCenter,
+        animationMode: 'easeTo',
+        animationDuration: 500,
+      });
+    }
   };
 
   return (
@@ -117,10 +203,7 @@ const App: React.FC = () => {
         style={styles.map}
         logoEnabled={false}
         styleURL="https://demotiles.maplibre.org/style.json">
-        <MapLibreGL.Camera
-          zoomLevel={zoomLevel}
-          centerCoordinate={features[0]?.geometry.coordinates || [0, 0]}
-        />
+        <MapLibreGL.Camera ref={cameraRef} zoomLevel={zoomLevel} />
         {features.length > 0 && (
           <MapLibreGL.ShapeSource
             id="pointSource"
@@ -135,12 +218,19 @@ const App: React.FC = () => {
           </MapLibreGL.ShapeSource>
         )}
       </MapLibreGL.MapView>
+      <View style={styles.TotalNumberMatchedContainer}>
+        {/* Conditional rendering to handle loading state */}
+        <Text style={styles.text}>
+          Total Number Matched:{' '}
+          {numberMatched !== null ? numberMatched : 'Loading...'}
+        </Text>
+        <Text style={styles.text}>Current Markers:{features.length}</Text>
+      </View>
       <View style={styles.LoadButtonContainer}>
         <Button
-          // eslint-disable-next-line quotes
-          title={loading ? 'Loading...' : 'Load More'}
+          title={loading ? 'Loading...' : 'Load More Markers'}
           onPress={loadMoreFeatures}
-          disabled={loading}
+          disabled={loading || features.length >= LIMIT}
         />
       </View>
       <View style={styles.ZoomButtonContainer}>
@@ -155,8 +245,8 @@ const App: React.FC = () => {
         <TouchableOpacity
           style={styles.button}
           onPress={zoomOut}
-          disabled={zoomLevel >= MAX_ZOOM_LEVEL}>
-          <Icon name="zoom-in" size={30} style={styles.icon} />
+          disabled={zoomLevel <= MIN_ZOOM_LEVEL}>
+          <Icon name="zoom-out" size={30} style={styles.icon} />
         </TouchableOpacity>
       </View>
     </View>
