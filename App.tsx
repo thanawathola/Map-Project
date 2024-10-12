@@ -77,11 +77,8 @@ type GeoJsonFeature = {
 type GeoJsonFeatureCollection = {
   type: 'FeatureCollection';
   features: GeoJsonFeature[];
-};
-
-interface ApiResponse {
   numberMatched: number;
-}
+};
 
 const BATCH_SIZE = 500;
 const LIMIT = 10000;
@@ -92,26 +89,14 @@ const MIN_ZOOM_LEVEL = 0;
 const App: React.FC = () => {
   const [features, setFeatures] = useState<GeoJsonFeature[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [zoomLevel, setZoomLevel] = useState(5);
 
   const [mapCenter, setMapCenter] = useState<[number, number]>([0, 0]);
   const cameraRef = useRef<any>(null);
 
-  const [numberMatched, setNumberMatched] = useState<number | null>(null);
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(API_URL);
-        const json: ApiResponse = await response.json();
-        setNumberMatched(json.numberMatched);
-      } catch (error) {
-        console.error(error);
-      }
-    };
+  const [numberMatched, setNumberMatched] = useState<number>(0);
 
-    fetchData();
-  }, []);
   const fetchFeatures = useCallback(async (page: number) => {
     try {
       setLoading(true);
@@ -129,8 +114,9 @@ const App: React.FC = () => {
             : [...prevFeatures],
         );
         if (response.data.features.length > 0 && page === 0) {
+           setNumberMatched(response.data.numberMatched);
           centerMapOnCoordinates(
-            response.data.features[0].geometry.coordinates,
+            response.data.features[0].geometry.coordinates
           );
         }
       } else {
@@ -221,8 +207,7 @@ const App: React.FC = () => {
       <View style={styles.TotalNumberMatchedContainer}>
         {/* Conditional rendering to handle loading state */}
         <Text style={styles.text}>
-          Total Number Matched:{' '}
-          {numberMatched !== null ? numberMatched : 'Loading...'}
+          {`Total Number Matched: ${numberMatched}`}
         </Text>
         <Text style={styles.text}>Current Markers:{features.length}</Text>
       </View>
